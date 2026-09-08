@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.Python
+*.log
+
+# AWS / credentials — never commit these
+.aws/
+*.pem
+*.env
+credentials.json
+config.json
+
+# CDK
+infra-cdk/cdk.out/
+infra-cdk/cdk.context.json
+infra-cdk/.venv/
+node_modules/
+
+# Data artifacts (generated locally, not tracked)
+generator/output/
+*.jsonl
+*.parquet
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
