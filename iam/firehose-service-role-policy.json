@@ -1,0 +1,59 @@
+{
+  "_comment": "This is NOT attached to clickstream-dev. This is a separate service role that Firehose itself assumes to write into S3 on your behalf. The console's 'Create delivery stream' wizard creates this automatically if you let it — this file documents what it creates, for reference and for the Phase 9 CDK rebuild.",
+
+  "role_name": "clickstream-firehose-delivery-role",
+
+  "trust_policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Principal": { "Service": "firehose.amazonaws.com" },
+        "Action": "sts:AssumeRole",
+        "Condition": {
+          "StringEquals": { "sts:ExternalId": "<YOUR_ACCOUNT_ID>" }
+        }
+      }
+    ]
+  },
+
+  "permissions_policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "WriteToRawZone",
+        "Effect": "Allow",
+        "Action": [
+          "s3:PutObject",
+          "s3:GetBucketLocation",
+          "s3:ListBucket",
+          "s3:GetObject"
+        ],
+        "Resource": [
+          "arn:aws:s3:::clickstream-lake-mtusharaug",
+          "arn:aws:s3:::clickstream-lake-mtusharaug/*"
+        ]
+      },
+      {
+        "Sid": "ReadFromKinesisSource",
+        "Effect": "Allow",
+        "Action": [
+          "kinesis:DescribeStream",
+          "kinesis:GetShardIterator",
+          "kinesis:GetRecords",
+          "kinesis:ListShards"
+        ],
+        "Resource": "arn:aws:kinesis:*:*:stream/clickstream-events-stream"
+      },
+      {
+        "Sid": "FirehoseErrorLogging",
+        "Effect": "Allow",
+        "Action": [
+          "logs:PutLogEvents",
+          "logs:CreateLogStream"
+        ],
+        "Resource": "arn:aws:logs:*:*:log-group:/aws/kinesisfirehose/*"
+      }
+    ]
+  }
+}
