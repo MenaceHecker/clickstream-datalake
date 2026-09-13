@@ -18,8 +18,8 @@
         "s3:GetBucketTagging"
       ],
       "Resource": [
-        "arn:aws:s3:::clickstream-lake-<YOUR_ID>",
-        "arn:aws:s3:::clickstream-lake-<YOUR_ID>/*"
+        "arn:aws:s3:::clickstream-lake-mtusharaug",
+        "arn:aws:s3:::clickstream-lake-mtusharaug/*"
       ]
     },
     {
