@@ -124,6 +124,36 @@
       "Resource": "arn:aws:events:*:*:rule/clickstream-*"
     },
     {
+      "Sid": "KinesisStreamForStreamingIngestion",
+      "Effect": "Allow",
+      "Action": [
+        "kinesis:CreateStream",
+        "kinesis:DeleteStream",
+        "kinesis:DescribeStream",
+        "kinesis:DescribeStreamSummary",
+        "kinesis:ListStreams",
+        "kinesis:PutRecord",
+        "kinesis:PutRecords",
+        "kinesis:GetShardIterator",
+        "kinesis:GetRecords",
+        "kinesis:TagResource"
+      ],
+      "Resource": "arn:aws:kinesis:*:*:stream/clickstream-*"
+    },
+    {
+      "Sid": "FirehoseDeliveryStreamManagement",
+      "Effect": "Allow",
+      "Action": [
+        "firehose:CreateDeliveryStream",
+        "firehose:DeleteDeliveryStream",
+        "firehose:DescribeDeliveryStream",
+        "firehose:ListDeliveryStreams",
+        "firehose:UpdateDestination",
+        "firehose:TagDeliveryStream"
+      ],
+      "Resource": "arn:aws:firehose:*:*:deliverystream/clickstream-*"
+    },
+    {
       "Sid": "CloudWatchLogsForDebugging",
       "Effect": "Allow",
       "Action": [
