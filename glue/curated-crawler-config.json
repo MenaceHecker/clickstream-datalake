@@ -1,0 +1,23 @@
+{
+  "Name": "clickstream-curated-crawler",
+  "Role": "arn:aws:iam::<YOUR_ACCOUNT_ID>:role/clickstream-glue-crawler-role",
+  "DatabaseName": "clickstream_curated",
+  "Description": "Crawls the S3 curated zone (partitioned Parquet, produced by etl_job.py) so it's queryable in Athena for Phase 7.",
+  "Targets": {
+    "S3Targets": [
+      {
+        "Path": "s3://clickstream-lake-mtusharaug/curated/"
+      }
+    ]
+  },
+  "SchemaChangePolicy": {
+    "UpdateBehavior": "UPDATE_IN_DATABASE",
+    "DeleteBehavior": "LOG"
+  },
+  "RecrawlPolicy": {
+    "RecrawlBehavior": "CRAWL_EVERYTHING"
+  },
+  "Tags": {
+    "Project": "clickstream-lake"
+  }
+}
