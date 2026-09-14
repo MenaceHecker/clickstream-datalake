@@ -63,12 +63,7 @@
         "glue:TagResource",
         "glue:GetTags"
       ],
-      "Resource": "*",
-      "Condition": {
-        "StringEquals": {
-          "aws:ResourceTag/Project": "clickstream-lake"
-        }
-      }
+      "Resource": "*"
     },
     {
       "Sid": "GlueCatalogDiscovery",
