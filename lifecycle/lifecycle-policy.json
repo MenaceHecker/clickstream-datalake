@@ -1,0 +1,33 @@
+{
+  "Rules": [
+    {
+      "ID": "raw-zone-tiering",
+      "Filter": { "Prefix": "raw/" },
+      "Status": "Enabled",
+      "Transitions": [
+        { "Days": 30, "StorageClass": "STANDARD_IA" },
+        { "Days": 90, "StorageClass": "GLACIER_IR" }
+      ]
+    },
+    {
+      "ID": "athena-results-expiry",
+      "Filter": { "Prefix": "athena-results/" },
+      "Status": "Enabled",
+      "Expiration": { "Days": 7 }
+    },
+    {
+      "ID": "intelligent-tiering-comparison-test",
+      "Filter": { "Prefix": "test-intelligent-tiering/" },
+      "Status": "Enabled",
+      "Transitions": [
+        { "Days": 0, "StorageClass": "INTELLIGENT_TIERING" }
+      ]
+    },
+    {
+      "ID": "abort-incomplete-multipart-uploads",
+      "Filter": {},
+      "Status": "Enabled",
+      "AbortIncompleteMultipartUpload": { "DaysAfterInitiation": 7 }
+    }
+  ]
+}
