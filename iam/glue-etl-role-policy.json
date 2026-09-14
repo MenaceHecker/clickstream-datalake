@@ -1,0 +1,63 @@
+{
+  "_comment": "Not attached to clickstream-dev. This is the service role the Glue ETL job itself assumes to read the raw catalog, read raw S3 data, and write curated Parquet.",
+
+  "role_name": "clickstream-glue-etl-role",
+
+  "trust_policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Principal": { "Service": "glue.amazonaws.com" },
+        "Action": "sts:AssumeRole"
+      }
+    ]
+  },
+
+  "permissions_policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "ReadRawWriteCurated",
+        "Effect": "Allow",
+        "Action": [
+          "s3:GetObject",
+          "s3:ListBucket"
+        ],
+        "Resource": [
+          "arn:aws:s3:::clickstream-lake-mtusharaug",
+          "arn:aws:s3:::clickstream-lake-mtusharaug/raw/*"
+        ]
+      },
+      {
+        "Sid": "WriteCuratedZone",
+        "Effect": "Allow",
+        "Action": [
+          "s3:PutObject",
+          "s3:DeleteObject"
+        ],
+        "Resource": "arn:aws:s3:::clickstream-lake-mtusharaug/curated/*"
+      },
+      {
+        "Sid": "ReadGlueScriptFromS3",
+        "Effect": "Allow",
+        "Action": ["s3:GetObject"],
+        "Resource": "arn:aws:s3:::clickstream-lake-mtusharaug/glue-scripts/*"
+      },
+      {
+        "Sid": "ReadWriteDataCatalog",
+        "Effect": "Allow",
+        "Action": [
+          "glue:GetDatabase",
+          "glue:GetTable",
+          "glue:GetTables",
+          "glue:GetPartitions",
+          "glue:CreateTable",
+          "glue:UpdateTable",
+          "glue:BatchCreatePartition"
+        ],
+        "Resource": "*"
+      }
+    ]
+  }
+}
