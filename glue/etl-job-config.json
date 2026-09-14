@@ -1,0 +1,25 @@
+{
+  "Name": "clickstream-json-to-parquet",
+  "Role": "arn:aws:iam::<YOUR_ACCOUNT_ID>:role/clickstream-glue-etl-role",
+  "Command": {
+    "Name": "glueetl",
+    "ScriptLocation": "s3://clickstream-lake-mtusharaug/glue-scripts/etl_job.py",
+    "PythonVersion": "3"
+  },
+  "DefaultArguments": {
+    "--raw_database": "clickstream_raw",
+    "--raw_table": "raw",
+    "--curated_s3_path": "s3://clickstream-lake-mtusharaug/curated/",
+    "--job-language": "python",
+    "--enable-metrics": "true",
+    "--enable-continuous-cloudwatch-log": "true"
+  },
+  "GlueVersion": "4.0",
+  "WorkerType": "G.1X",
+  "NumberOfWorkers": 2,
+  "MaxRetries": 0,
+  "Timeout": 30,
+  "Tags": {
+    "Project": "clickstream-lake"
+  }
+}
