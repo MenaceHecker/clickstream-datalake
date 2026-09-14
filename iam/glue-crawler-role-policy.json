@@ -1,0 +1,62 @@
+{
+  "_comment": "Not attached to clickstream-dev. This is the service role the Glue crawler itself assumes to read S3 and write into the Data Catalog. Create via console (Glue auto-offers to create this) or CLI, then reference its ARN in glue/crawler-config.json.",
+
+  "role_name": "clickstream-glue-crawler-role",
+
+  "trust_policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Principal": { "Service": "glue.amazonaws.com" },
+        "Action": "sts:AssumeRole"
+      }
+    ]
+  },
+
+  "permissions_policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "ReadRawAndCuratedZones",
+        "Effect": "Allow",
+        "Action": [
+          "s3:GetObject",
+          "s3:ListBucket"
+        ],
+        "Resource": [
+          "arn:aws:s3:::clickstream-lake-mtusharaug",
+          "arn:aws:s3:::clickstream-lake-mtusharaug/raw/*",
+          "arn:aws:s3:::clickstream-lake-mtusharaug/curated/*"
+        ]
+      },
+      {
+        "Sid": "WriteToDataCatalog",
+        "Effect": "Allow",
+        "Action": [
+          "glue:GetDatabase",
+          "glue:CreateTable",
+          "glue:UpdateTable",
+          "glue:GetTable",
+          "glue:GetTables",
+          "glue:BatchCreatePartition",
+          "glue:GetPartitions",
+          "glue:BatchUpdatePartition"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "CrawlerLogging",
+        "Effect": "Allow",
+        "Action": [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ],
+        "Resource": "arn:aws:logs:*:*:log-group:/aws-glue/crawlers*"
+      }
+    ]
+  },
+
+  "note": "AWS also publishes an AWSGlueServiceRole managed policy that covers most of this if you'd rather attach that instead of hand-rolling the permissions_policy above. The custom version here is scoped to this project's bucket/prefix specifically, consistent with the rest of this project's IAM approach."
+}
