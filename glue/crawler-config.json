@@ -1,0 +1,24 @@
+{
+  "Name": "clickstream-raw-crawler",
+  "Role": "arn:aws:iam::432828558379:role/clickstream-glue-crawler-role",
+  "DatabaseName": "clickstream_raw",
+  "Description": "Crawls the S3 raw zone (JSONL, Hive-partitioned by year/month/day/hour) and infers the schema and partition structure into the Glue Data Catalog.",
+  "Targets": {
+    "S3Targets": [
+      {
+        "Path": "s3://clickstream-lake-mtusharaug/raw/"
+      }
+    ]
+  },
+  "SchemaChangePolicy": {
+    "UpdateBehavior": "UPDATE_IN_DATABASE",
+    "DeleteBehavior": "LOG"
+  },
+  "RecrawlPolicy": {
+    "RecrawlBehavior": "CRAWL_EVERYTHING"
+  },
+  "Configuration": "{\"Version\":1.0,\"Grouping\":{\"TableGroupingPolicy\":\"CombineCompatibleSchemas\"}}",
+  "Tags": {
+    "Project": "clickstream-lake"
+  }
+}
