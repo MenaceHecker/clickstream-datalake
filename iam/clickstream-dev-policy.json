@@ -165,6 +165,26 @@
       ]
     },
     {
+      "Sid": "AssumeCDKBootstrapRoles",
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:iam::*:role/cdk-*-role-*"
+    },
+    {
+      "Sid": "BudgetsWriteForCDKDeploy",
+      "Effect": "Allow",
+      "Action": [
+        "budgets:CreateBudget",
+        "budgets:ModifyBudget",
+        "budgets:DeleteBudget",
+        "budgets:CreateNotification",
+        "budgets:DeleteNotification",
+        "budgets:CreateSubscriber",
+        "budgets:DeleteSubscriber"
+      ],
+      "Resource": "*"
+    },
+    {
       "Sid": "BudgetsAndCostExplorerReadOnly",
       "Effect": "Allow",
       "Action": [

@@ -27,17 +27,20 @@ that a checkbox managed policy doesn't give you.
 | `IAMRoleManagementForProjectResourcesOnly` | `role/clickstream-*` | CDK and Lambda both need to create/attach execution roles, scoped by name prefix |
 | `CloudFormationForCDKDeploy` | `stack/CDKToolkit/*`, `stack/clickstream-*/*` | CDK deploys through CloudFormation under the hood (Phase 9) |
 
-## Known caveat: Glue's tag condition
+## Known caveat: Glue's tag condition (UPDATE: hit this in Phase 6, resolved)
 
-`GlueCatalogAndJobs` includes a `Condition` requiring `aws:ResourceTag/Project =
-clickstream-lake`. In practice, several Glue actions (`CreateDatabase`, `CreateCrawler`,
-`CreateJob`) don't consistently enforce resource-tag conditions at the API level — this is a
-known inconsistency in Glue's IAM integration, not a mistake in this policy. The
-`GlueCatalogDiscovery` statement exists specifically so read/list operations keep working
-even if the tag condition ends up not applying as strictly as written. If Glue actions get
-denied unexpectedly while working through Phases 5–6, this condition is the first thing to
-loosen — drop the `Condition` block entirely and rely on naming convention instead (all Glue
-resources named with a `clickstream_` prefix) rather than debugging tag propagation.
+`GlueCatalogAndJobs` originally included a `Condition` requiring
+`aws:ResourceTag/Project = clickstream-lake`. This caused a real
+`AccessDeniedException` on `glue:StartJobRun` during Phase 6 — the job
+didn't carry the tag reliably enough for the condition to evaluate as
+satisfied, so the action was denied even though the base policy granted
+it. **The condition has since been removed from this policy.** Glue
+resource access here is now controlled by naming convention
+(`clickstream-*` prefix) rather than tags, consistent with how every
+other statement in this policy is scoped. This is left in the notes as a
+real example of a documented risk actually happening, not a hypothetical
+— worth mentioning as-is in an interview rather than cleaning up the
+narrative after the fact.
 
 ## Setup steps
 
@@ -66,6 +69,45 @@ S3. That role gets created automatically by the console's delivery-stream
 wizard; the JSON file here exists so the same permissions can be
 recreated deliberately via CDK in Phase 9, rather than relying on
 console-generated defaults that are easy to forget the shape of later.
+
+## Phase 9 addition: CDK bootstrap role assumption + Budgets write access
+
+Two more changes for the CDK rebuild:
+
+1. **`AssumeCDKBootstrapRoles`** — modern CDK (v2, "new-style" bootstrap)
+   deploys through a set of auto-generated IAM roles
+   (`cdk-hnb659fds-deploy-role-*`, `cdk-hnb659fds-file-publishing-role-*`,
+   etc.) rather than having the deploying identity call CloudFormation
+   and S3 directly. `clickstream-dev` needs `sts:AssumeRole` on these
+   specifically — this is the standard, secure way CDK expects to be
+   used, not a workaround.
+
+2. **`BudgetsWriteForCDKDeploy`** — a genuine, deliberate reversal of an
+   earlier decision. Phase 0's original design gave `clickstream-dev`
+   *view-only* budget access, on the reasoning that root/admin sets
+   budgets up once and this user only needs to check them. Phase 9's CDK
+   stack now defines the two budgets as code, meaning `clickstream-dev`
+   needs to actually create/modify/delete them for `cdk deploy` /
+   `cdk destroy` to be true one-command operations. This is worth being
+   explicit about rather than quietly loosening it: the trade-off is
+   "one-command IaC" (the actual Phase 9 goal) versus "budgets can only
+   ever be touched by an admin" (the original, more conservative Phase 0
+   posture). This project prioritizes the former once IaC is the goal —
+   in a team/production setting, this is exactly the kind of change that
+   would get flagged in a policy review before merging.
+
+## `cdk bootstrap` itself still needs broader permissions (one-time)
+
+Bootstrapping a CDK environment (`cdk bootstrap`) provisions the roles
+and S3 asset bucket referenced above — a one-time, account-level setup
+step that itself needs broader permissions than this scoped policy
+grants (it's creating the very roles this policy later assumes). Run
+`cdk bootstrap` once as an admin/root-equivalent identity, or
+temporarily attach `AdministratorAccess` to `clickstream-dev` for that
+single command, then revert. Document whichever approach you actually
+used here once you've done it — this is intentionally left open rather
+than guessed at, since it depends on what admin access you have
+available.
 
 ## What this does NOT cover yet
 
