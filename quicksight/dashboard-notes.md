@@ -67,7 +67,7 @@ Output: three PNGs written to `docs/` —
 
 ## Definition of done
 
-- [ ] Script runs end-to-end against live Athena data without error
-- [ ] All three PNGs generated in `docs/`
-- [ ] Charts show real numbers from the pipeline (not synthetic test data)
-- [ ] Decision rationale documented (this file)
+- [x] Script runs end-to-end against live Athena data without error
+- [x] All three PNGs generated in `docs/`
+- [x] Charts show real numbers from the pipeline (not synthetic test data) — 11,443 events, funnel 2325 → 902 → 594 → 416
+- [x] Decision rationale documented (this file)
