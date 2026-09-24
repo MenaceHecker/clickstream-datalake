@@ -111,6 +111,7 @@ class ClickstreamStack(Stack):
                     "glue:GetTables",
                     "glue:BatchCreatePartition",
                     "glue:GetPartitions",
+                    "glue:BatchGetPartition",
                     "glue:BatchUpdatePartition",
                 ],
                 resources=["*"],
