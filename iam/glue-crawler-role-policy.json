@@ -41,6 +41,7 @@
           "glue:GetTables",
           "glue:BatchCreatePartition",
           "glue:GetPartitions",
+          "glue:BatchGetPartition",
           "glue:BatchUpdatePartition"
         ],
         "Resource": "*"
