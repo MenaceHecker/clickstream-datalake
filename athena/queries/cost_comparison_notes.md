@@ -65,12 +65,16 @@ change). To convert bytes scanned into a dollar figure:
 cost = (bytes_scanned / 1_099_511_627_776) * 5.00   # bytes -> TiB -> dollars
 ```
 
-Fill in the actual numbers once you've run both queries:
+Actual numbers, pulled via the CLI method above on 2026-09-24:
 
 | | Raw JSON | Curated Parquet | Reduction |
 |---|---|---|---|
-| Data scanned | `___ MB/GB` | `___ MB/GB` | `___%` |
-| Estimated cost | `$___` | `$___` | `___%` |
+| Data scanned | 4,350,579 bytes (4.15 MB) | 121,131 bytes (118.3 KB) | **97.22%** |
+| Estimated cost | $0.0000198 | $0.00000055 | 97.22% |
+
+(`DataScannedInBytes` from `GetQueryExecution`, both queries against the
+full `purchase`-event set — 11,443 total curated events at the time of this
+run, `SELECT COUNT(*) FROM clickstream_curated.curated`.)
 
 ## An honest caveat about this project's scale
 
@@ -96,8 +100,9 @@ marketing claim, whatever the actual number is at this scale.
 
 ## What to fill in before Phase 10
 
-- [ ] Run Query A and Query B, record actual `DataScannedInBytes` for both
-- [ ] Fill in the comparison table above
-- [ ] Note current Athena per-TB pricing at the time you ran this (in
-      case it's changed by the time you write the final README)
-- [ ] Carry the final numbers into `docs/cost-report.md` in Phase 10
+- [x] Run Query A and Query B, record actual `DataScannedInBytes` for both
+- [x] Fill in the comparison table above
+- [x] Note current Athena per-TB pricing at the time you ran this (in
+      case it's changed by the time you write the final README) — $5.00/TB,
+      us-east-1, as of 2026-09-24
+- [x] Carry the final numbers into `docs/cost-report.md` in Phase 10
