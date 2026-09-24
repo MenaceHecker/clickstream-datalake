@@ -115,6 +115,17 @@ reasoning and the reason it changed are recorded in `iam/iam-notes.md` — the
 kind of policy-review conversation that happens on a real team, made visible
 here instead of just quietly resolved.
 
+**A second real IAM gap, caught while pulling Phase 10's real numbers.**
+The raw crawler's role (`iam/glue-crawler-role-policy.json`) was missing
+`glue:BatchGetPartition` — it had `GetPartitions` and `BatchUpdatePartition`
+but not the batch-get variant the crawler actually calls, causing every
+crawler run to fail with `AccessDeniedException` until this was found and
+fixed (in both the policy file and the equivalent CDK statement) while
+verifying the pipeline end-to-end for this README. Left in as a second
+documented example, alongside the Phase 6 tag-condition issue below, that
+least-privilege IAM policies get refined by hitting real `AccessDenied`
+errors, not by getting every action right on the first pass.
+
 **Schema evolution handled by design, not by accident.** The event generator
 (Phase 1) deliberately introduces a `discount_code` field partway through
 data generation. This exercises real behavior at two later layers: Glue's
@@ -126,18 +137,19 @@ infrastructure — see `glue/etl-setup-notes.md`.
 
 ## Real numbers
 
-_(Fill in from your own account — see the phase notes referenced for exactly
-how to pull each of these.)_
+Pulled directly from the live AWS account on 2026-09-24 (Athena
+`GetQueryExecution` stats, Glue `GetJobRun`, Cost Explorer) — see the phase
+notes referenced for the exact commands used.
 
 | Metric | Value | Source |
 |---|---|---|
-| Simulated events processed | `___` | Phase 1 generator run totals |
-| Athena data scanned — raw JSON | `___ MB` | `athena/queries/cost_comparison_notes.md` |
-| Athena data scanned — curated Parquet | `___ MB` | same |
-| Query cost reduction (JSON → Parquet) | `___%` | same |
-| Glue ETL job duration | `___ sec` | CloudWatch / Glue console, Phase 6 |
-| Total AWS spend (Cost Explorer, tagged) | `$___` | `docs/cost-report.md` |
-| Spend against $200 pool | `___%` | same |
+| Simulated events processed | 11,443 | `SELECT COUNT(*) FROM clickstream_curated.curated` |
+| Athena data scanned — raw JSON | 4.15 MB (4,350,579 bytes) | `athena/queries/cost_comparison_notes.md` |
+| Athena data scanned — curated Parquet | 118.3 KB (121,131 bytes) | same |
+| Query cost reduction (JSON → Parquet) | 97.22% | same |
+| Glue ETL job duration | 123 sec (246 DPU-seconds, 2× G.1X workers) | `aws glue get-job-run`, Phase 6 |
+| Total AWS spend (Cost Explorer, tagged) | ~$0.00 (effectively free-tier scale; today's Glue/Athena usage not yet reflected — CE has ~24-48h lag) | `docs/cost-report.md` |
+| Spend against $200 pool | ~0% | same |
 
 ## How to run
 
@@ -184,7 +196,7 @@ _(Screenshots from `quicksight/dashboard_notebook.py` output — see `docs/`)_
 
 ## Build log
 
-- [x] Phase 0 — Cost guardrails & repo scaffold
+- [ ] Phase 0 — Cost guardrails & repo scaffold _(tagging convention is live; the two AWS Budgets themselves are documented and encoded in CDK but not yet created in AWS — needs an admin/root identity, see `cost-guardrails/budget-config-notes.md`)_
 - [x] Phase 1 — Clickstream event generator
 - [x] Phase 2 — Raw zone ingestion to S3
 - [x] Phase 3 — Automated/streaming ingestion (Kinesis + Firehose)
@@ -193,8 +205,8 @@ _(Screenshots from `quicksight/dashboard_notebook.py` output — see `docs/`)_
 - [x] Phase 6 — Glue ETL: JSON → partitioned Parquet
 - [x] Phase 7 — Athena analytics & cost comparison
 - [x] Phase 8 — Dashboard (notebook fallback)
-- [x] Phase 9 — Infrastructure as Code (CDK rebuild)
-- [ ] Phase 10 — Documentation & resume packaging _(in progress — this file)_
+- [x] Phase 9 — Infrastructure as Code (CDK stack written; not yet deployed end-to-end via `cdk deploy` — the live resources above were created directly via CLI/console, matching the CDK definitions)
+- [x] Phase 10 — Documentation & resume packaging
 
 ## Cost report
 
