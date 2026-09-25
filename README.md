@@ -1,5 +1,7 @@
 # E-Commerce Clickstream Data Lake & Cost-Optimized Analytics Pipeline
 
+[![CI](https://github.com/MenaceHecker/clickstream-datalake/actions/workflows/ci.yml/badge.svg)](https://github.com/MenaceHecker/clickstream-datalake/actions/workflows/ci.yml)
+
 A serverless AWS data lake that ingests simulated e-commerce clickstream events
 (batch + real-time streaming), stores them in tiered S3 zones, catalogs and
 transforms them with Glue, serves analytics through Athena, visualizes them via
@@ -140,6 +142,23 @@ verifying the pipeline end-to-end for this README. Left in as a second
 documented example, alongside the Phase 6 tag-condition issue below, that
 least-privilege IAM policies get refined by hitting real `AccessDenied`
 errors, not by getting every action right on the first pass.
+
+**Added CI after finding real bugs by hand, not before.** This project
+initially had zero automation — every gap in it (the crawler's missing
+`glue:BatchGetPartition`, the CDK stack's hardcoded Glue database names
+colliding with a real `AlreadyExists` on deploy) was found by manually
+running commands against a live AWS account during Phase 10 validation.
+`.github/workflows/ci.yml` now runs on every push/PR: `ruff` (a
+correctness-focused subset — `E`/`F`, with line-length rules deliberately
+left off since several `argparse --help` strings are long on purpose, not
+sloppy), a real smoke test of the event generator (runs it, then validates
+the output JSONL against the schema), and `cdk synth --strict` in both
+`enable_streaming` states. Worth being precise about what this actually buys: it wouldn't have caught
+either bug — the Glue database collision and the missing IAM action both
+only surface against real AWS state, which `cdk synth` deliberately never
+touches. What it does catch is the cheaper, more common failure: a typo
+that breaks the template outright, or a Python import error, before either
+reaches a real `cdk deploy` and burns a deploy cycle finding out.
 
 **Schema evolution handled by design, not by accident.** The event generator
 (Phase 1) deliberately introduces a `discount_code` field partway through
