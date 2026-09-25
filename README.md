@@ -72,6 +72,21 @@ specific caveat: Firehose partitions by *delivery time*, not the event's own
 timestamp like the batch uploader does — a deliberate, documented
 approximation rather than an oversight.
 
+**Update, discovered during Phase 9 validation: Phase 3 was never actually
+live.** Every Kinesis and Firehose API call against this AWS account —
+including a plain read-only `kinesis:ListStreams` — fails with
+`SubscriptionRequiredException`. This is an account-level restriction, not
+an IAM permissions gap (confirmed with both the scoped `clickstream-dev`
+user and a temporary admin identity). The code, IAM roles, and CDK
+definitions for Path B are all correct and were `cdk synth`-verified, but
+the stream itself was never actually creatable in this account. Rather
+than quietly drop the Kinesis/Firehose resources from the CDK stack, they
+were made conditional (`enable_streaming`, default `true`) so the intended
+architecture stays the default and this account's specific restriction is
+an opt-out, not a redesign. Flagged here instead of leaving the build log
+checked for something that was never verified live — the same standard
+this README already holds every other phase to.
+
 **Manual S3 lifecycle rules over Intelligent-Tiering (Phase 4).**
 Clickstream data has a predictable cooling curve (hot immediately after
 ingestion, cold forever after), which favors manual rules over Intelligent-
@@ -196,16 +211,16 @@ _(Screenshots from `quicksight/dashboard_notebook.py` output — see `docs/`)_
 
 ## Build log
 
-- [ ] Phase 0 — Cost guardrails & repo scaffold _(tagging convention is live; the two AWS Budgets themselves are documented and encoded in CDK but not yet created in AWS — needs an admin/root identity, see `cost-guardrails/budget-config-notes.md`)_
+- [x] Phase 0 — Cost guardrails & repo scaffold. Both budgets (`clickstream-soft-limit` $150, `clickstream-hard-stop` $180) are live in AWS as of 2026-09-25 — see `cost-guardrails/budget-config-notes.md`
 - [x] Phase 1 — Clickstream event generator
 - [x] Phase 2 — Raw zone ingestion to S3
-- [x] Phase 3 — Automated/streaming ingestion (Kinesis + Firehose)
+- [ ] Phase 3 — Automated/streaming ingestion (Kinesis + Firehose) _(code and IAM roles written, but never actually deployed — this AWS account rejects **every** Kinesis/Firehose API call, including plain read-only `ListStreams`, with `SubscriptionRequiredException`. This is an account-level restriction unrelated to IAM permissions, discovered while validating Phase 9. Worth a closer look — see the note in `infra-cdk/cdk-setup-notes.md`)_
 - [x] Phase 4 — Storage tiering & lifecycle policies
 - [x] Phase 5 — Glue Crawler & Data Catalog
 - [x] Phase 6 — Glue ETL: JSON → partitioned Parquet
 - [x] Phase 7 — Athena analytics & cost comparison
 - [x] Phase 8 — Dashboard (notebook fallback)
-- [x] Phase 9 — Infrastructure as Code (CDK stack written; not yet deployed end-to-end via `cdk deploy` — the live resources above were created directly via CLI/console, matching the CDK definitions)
+- [x] Phase 9 — Infrastructure as Code. `cdk deploy` completed successfully on 2026-09-25 (`-c enable_streaming=false`, see below) — a real, working parallel pipeline stood up entirely from the CDK stack, including budgets created by CDK itself
 - [x] Phase 10 — Documentation & resume packaging
 
 ## Cost report
