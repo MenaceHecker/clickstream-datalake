@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check .
+
+  generator-smoke-test:
+    name: Event generator smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install generator dependencies
+        working-directory: generator
+        run: pip install -r requirements.txt
+      - name: Generate a small batch
+        working-directory: generator
+        run: python event_generator.py --events 200 --out-dir /tmp/ci-output --seed 42
+      - name: Validate output is schema-consistent JSONL
+        run: |
+          python3 - <<'EOF'
+          import glob
+          import json
+
+          REQUIRED_FIELDS = {
+              "event_id", "event_type", "user_id", "session_id", "timestamp",
+              "device_type", "referrer", "country",
+          }
+
+          files = glob.glob("/tmp/ci-output/*.jsonl")
+          assert files, "event_generator.py produced no output files"
+
+          count = 0
+          for path in files:
+              with open(path) as f:
+                  for line in f:
+                      line = line.strip()
+                      if not line:
+                          continue
+                      record = json.loads(line)
+                      missing = REQUIRED_FIELDS - record.keys()
+                      assert not missing, f"{path}: record missing fields {missing}"
+                      count += 1
+
+          assert count > 0, "no events were written to any output file"
+          print(f"OK: {count} schema-consistent events across {len(files)} file(s)")
+          EOF
+
+  cdk-synth:
+    name: CDK synth (both streaming modes)
+    runs-on: ubuntu-latest
+    env:
+      CDK_DEFAULT_ACCOUNT: "123456789012"
+      CDK_DEFAULT_REGION: "us-east-1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install CDK app dependencies
+        working-directory: infra-cdk
+        run: pip install -r requirements.txt
+      - name: Synth with streaming enabled (default)
+        working-directory: infra-cdk
+        run: npx aws-cdk synth -c bucket_suffix=ci-test -c alert_email=ci@example.com --strict --quiet
+      - name: Synth with streaming disabled
+        working-directory: infra-cdk
+        run: npx aws-cdk synth -c bucket_suffix=ci-test -c alert_email=ci@example.com -c enable_streaming=false --strict --quiet

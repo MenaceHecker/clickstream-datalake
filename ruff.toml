@@ -1,0 +1,13 @@
+line-length = 110
+extend-exclude = ["infra-cdk/cdk.out", "output"]
+
+[lint]
+# Correctness-focused baseline (pyflakes + pycodestyle errors) rather than
+# style/formatting rules (import sorting, mutable-default nitpicks, etc.) —
+# this is a portfolio project's CI, meant to catch real bugs, not enforce
+# a house style nobody's agreed on.
+select = ["E", "F"]
+# Line length is a readability call, not a correctness issue — several
+# argparse --help strings run long on purpose, for a clearer CLI --help
+# output, and aren't worth wrapping just to satisfy a line-length rule.
+ignore = ["E501"]
