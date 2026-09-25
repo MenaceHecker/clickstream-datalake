@@ -231,6 +231,14 @@ two crawlers (`READY`), the ETL job, and — notably — the CDK stack's own
 `_add_budget` calls created two working budgets, proving Phase 9's IaC
 claim end-to-end, not just for storage/compute but for cost governance too.
 
+Torn down the same day with `cdk destroy --profile admin` once the proof
+was captured (Option B was always meant as a side-by-side demonstration,
+not a permanent second pipeline). `RemovalPolicy.RETAIN` meant the bucket
+survived the destroy as designed; emptied and deleted manually right after.
+Confirmed clean afterward: no `-cdk` bucket, databases, crawlers, job, or
+budgets remain — only the original manually-built pipeline and the
+`cdk-hnb659fds-assets-*` bootstrap staging bucket (expected to persist).
+
 ## Definition of done
 
 - [x] `cdk synth` runs clean (already verified locally, see top of this file)
