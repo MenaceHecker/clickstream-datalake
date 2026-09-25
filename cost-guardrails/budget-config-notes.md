@@ -22,33 +22,30 @@ This is what lets Cost Explorer and the budgets above filter to just this
 project instead of the whole account. Verified live on the S3 bucket, the
 Glue crawler/ETL IAM roles, and the Glue ETL job itself.
 
-## Status: not yet created in AWS — documented status, not silently assumed
+## Status: live in AWS (2026-09-25)
 
-Unlike every other phase in this repo, this one has an honest gap: **the two
-budgets above do not exist in the AWS account yet.** This was caught while
-pulling real numbers for Phase 10, not assumed away.
+Both budgets now exist, created directly with a temporary admin IAM
+identity (`clickstream-dev` itself only has `budgets:View*` — read-only, by
+design; see `iam/iam-notes.md` setup step 5). Confirmed via
+`aws budgets describe-budgets`:
 
-Why: `iam/clickstream-dev-policy.json` intentionally grants the
-`clickstream-dev` IAM user (the one this whole project's CLI work runs as)
-only `budgets:View*` — read-only. Creating a budget requires
-`budgets:ModifyBudget`, which the project's own least-privilege design
-deliberately withholds from this user (see `iam/iam-notes.md`, setup step 5:
-"Budgets/Cost Explorer setup itself still needs to be done as root or an
-admin-level user once"). Confirmed live:
+| Budget | Amount | Status |
+|---|---|---|
+| `clickstream-soft-limit` | $150 | HEALTHY |
+| `clickstream-hard-stop` | $180 | HEALTHY |
 
-```
-$ aws budgets create-budget --account-id <redacted> --budget file://budget-soft.json ...
-AccessDeniedException: User: .../clickstream-dev is not authorized to
-perform: budgets:ModifyBudget
-```
+The CDK stack's own `_add_budget` calls also created a second, parallel
+pair (`clickstream-soft-limit-cdk`, `clickstream-hard-stop-cdk`) as part of
+proving Phase 9's IaC end-to-end — see `infra-cdk/cdk-setup-notes.md` for
+that deploy. Four budgets now exist in total; worth deciding whether to
+keep both pairs or tear down one set once you're done treating this as a
+side-by-side proof.
 
-This is the IAM design working as intended, not a bug — it's just a manual
-step that was never actually carried out. **Action item:** log in as the
-account root user (or an admin identity) and either click through the two
-budgets above in the AWS Budgets console, or run `cdk deploy` once an admin
-identity is available to it (the CDK stack's `_add_budget` calls will create
-them, since the CDK deploy role has broader permissions than `clickstream-dev`
-does directly).
+This closed the one real gap this project had: the least-privilege IAM
+design correctly denied `clickstream-dev` from creating budgets directly
+(confirmed live with a real `AccessDeniedException` before this was fixed),
+exactly as documented — it just needed the manual admin step actually
+carried out, which it now has been.
 
 ## Cost Explorer
 
