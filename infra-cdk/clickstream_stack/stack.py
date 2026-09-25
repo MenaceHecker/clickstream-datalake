@@ -346,7 +346,7 @@ class ClickstreamStack(Stack):
                 budget_type="COST",
                 time_unit="MONTHLY",
                 budget_limit=budgets.CfnBudget.SpendProperty(amount=limit_amount, unit="USD"),
-                cost_filters={"TagKeyValue": [f"user:Project$clickstream-lake"]},
+                cost_filters={"TagKeyValue": ["user:Project$clickstream-lake"]},
             ),
             notifications_with_subscribers=notifications,
         )
