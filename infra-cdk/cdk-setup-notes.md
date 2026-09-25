@@ -200,11 +200,47 @@ actually delete the bucket too, empty it manually first
 (`aws s3 rm s3://... --recursive`) then delete it
 (`aws s3api delete-bucket`), same as the teardown checklist above.
 
+## Verified live (2026-09-25): `cdk deploy` actually completed
+
+Ran for real with a temporary admin identity (`clickstream-dev` alone can't
+bootstrap or do the initial deploy — see the verified caveats above), using
+Option B (deploy alongside, `bucket_suffix=mtusharaug-cdk`):
+
+```bash
+cdk bootstrap aws://432828558379/us-east-1 -c bucket_suffix=mtusharaug-cdk -c alert_email=<email>
+cdk deploy --profile admin -c bucket_suffix=mtusharaug-cdk -c alert_email=<email> -c enable_streaming=false
+```
+
+`enable_streaming=false` was needed because this AWS account rejects Kinesis
+stream creation outright (`"The AWS Access Key Id needs a subscription for
+the service"` — an account-level restriction, not IAM; confirmed via both a
+plain `kinesis:ListStreams` call and a real `CREATE_FAILED` during this
+deploy). See the `enable_streaming` flag added to `stack.py`/`app.py`
+specifically to work around this and prove out the rest of the stack.
+
+Also found and fixed along the way: the Glue database names
+(`clickstream_raw`/`clickstream_curated`) were hardcoded rather than
+parametrized by `bucket_suffix` like the S3 bucket is — a real
+`AlreadyExists` failure on first attempt, since Glue database names are
+account+region global and collided with the manually-created Phase 5/6
+databases. Now suffixed (`clickstream_raw_<bucket_suffix>`) so Option B
+actually works.
+
+Result: `clickstream-lake-mtusharaug-cdk` bucket, two new Glue databases,
+two crawlers (`READY`), the ETL job, and — notably — the CDK stack's own
+`_add_budget` calls created two working budgets, proving Phase 9's IaC
+claim end-to-end, not just for storage/compute but for cost governance too.
+
 ## Definition of done
 
-- [ ] `cdk synth` runs clean (already verified locally, see top of this file)
-- [ ] Manual resources torn down (Option A) or deployed alongside
-      (Option B) — document which you chose
-- [ ] `cdk deploy` completes successfully
+- [x] `cdk synth` runs clean (already verified locally, see top of this file)
+- [x] Manual resources torn down (Option A) or deployed alongside
+      (Option B) — **Option B**: deployed alongside as a parallel pipeline
+      under `bucket_suffix=mtusharaug-cdk`, manual resources untouched
+- [x] `cdk deploy` completes successfully (with `enable_streaming=false`
+      — see caveat above; Kinesis/Firehose still blocked at account level)
 - [ ] Data pipeline re-verified working against CDK-provisioned resources
+      (upload data, run crawlers/ETL job, query Athena against the `-cdk`
+      resources specifically — not yet done, the original manually-built
+      pipeline already proved this end-to-end)
 - [ ] `cdk destroy` documented and tested at least once
