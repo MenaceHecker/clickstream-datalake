@@ -109,6 +109,37 @@ command:
 cdk bootstrap aws://<account-id>/us-east-1
 ```
 
+**Verified live (2026-09-24), not just predicted:** ran `cdk synth`
+successfully with `clickstream-dev`'s scoped credentials (clean template,
+no AWS calls needed), then actually attempted `cdk bootstrap` with those
+same credentials to confirm this caveat for real rather than trusting it
+on paper. It failed exactly as expected:
+
+```
+AccessDenied: User: .../clickstream-dev is not authorized to perform:
+cloudformation:CreateChangeSet on resource:
+arn:aws:cloudformation:us-east-1:<account-id>:stack/CDKToolkit/*
+```
+
+Two separate reasons bootstrap specifically needs an admin identity, not
+just a policy tweak:
+1. `clickstream-dev`'s policy was missing `cloudformation:CreateChangeSet`
+   (modern CDK CLI deploys via change sets, not direct `CreateStack`/
+   `UpdateStack` calls) — **fixed** in `iam/clickstream-dev-policy.json`,
+   which now also covers ongoing `cdk deploy` calls against the
+   `clickstream-*` stack post-bootstrap.
+2. Even with that fixed, bootstrap itself creates resources that fall
+   outside every ARN this policy scopes to by design — the
+   `cdk-hnb659fds-*` IAM roles, a staging S3 bucket, an SSM parameter —
+   none of which match the `clickstream-*`/`stack/CDKToolkit/*` prefixes
+   `clickstream-dev` is deliberately restricted to. This part genuinely
+   requires broader-than-`clickstream-dev` credentials; there's no policy
+   fix that keeps it scoped, because bootstrap is an account-level,
+   one-time setup operation by nature. Standard practice, not a workaround:
+   an admin bootstraps the environment once, then scoped roles like
+   `clickstream-dev` (via `AssumeCDKBootstrapRoles`) drive deploys after
+   that.
+
 ### 2. Install dependencies
 
 ```bash
