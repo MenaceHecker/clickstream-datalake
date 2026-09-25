@@ -22,6 +22,10 @@ app = cdk.App()
 
 bucket_suffix = app.node.try_get_context("bucket_suffix")
 alert_email = app.node.try_get_context("alert_email")
+# Default True (the intended architecture); pass -c enable_streaming=false
+# to skip Kinesis+Firehose if this account rejects Kinesis stream creation
+# (see the note in clickstream_stack/stack.py and cdk-setup-notes.md).
+enable_streaming = str(app.node.try_get_context("enable_streaming") or "true").lower() != "false"
 
 if not alert_email:
     raise ValueError(
@@ -39,6 +43,7 @@ stack = ClickstreamStack(
     "ClickstreamDataLakeStack",
     bucket_suffix=bucket_suffix,
     alert_email=alert_email,
+    enable_streaming=enable_streaming,
     env=env,
 )
 

@@ -40,11 +40,22 @@ class ClickstreamStack(Stack):
         construct_id: str,
         bucket_suffix: str | None = None,
         alert_email: str = "",
+        enable_streaming: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         bucket_name = f"clickstream-lake-{bucket_suffix}" if bucket_suffix else None
+
+        # Glue database names, unlike the S3 bucket, were originally
+        # hardcoded ("clickstream_raw"/"clickstream_curated") rather than
+        # parametrized by bucket_suffix. That broke a real "Option B:
+        # deploy alongside" attempt (see cdk-setup-notes.md) with
+        # AlreadyExists errors, since Glue database names are account+region
+        # global — a parallel deploy under a different bucket_suffix still
+        # collided with the manually-created databases from Phase 5/6.
+        raw_db_name = f"clickstream_raw_{bucket_suffix}" if bucket_suffix else "clickstream_raw"
+        curated_db_name = f"clickstream_curated_{bucket_suffix}" if bucket_suffix else "clickstream_curated"
 
         # ------------------------------------------------------------------
         # S3 — the data lake bucket, with Phase 4's lifecycle rules built in
@@ -157,13 +168,13 @@ class ClickstreamStack(Stack):
             self,
             "RawDatabase",
             catalog_id=self.account,
-            database_input=glue.CfnDatabase.DatabaseInputProperty(name="clickstream_raw"),
+            database_input=glue.CfnDatabase.DatabaseInputProperty(name=raw_db_name),
         )
         curated_database = glue.CfnDatabase(
             self,
             "CuratedDatabase",
             catalog_id=self.account,
-            database_input=glue.CfnDatabase.DatabaseInputProperty(name="clickstream_curated"),
+            database_input=glue.CfnDatabase.DatabaseInputProperty(name=curated_db_name),
         )
 
         raw_crawler = glue.CfnCrawler(
@@ -171,7 +182,7 @@ class ClickstreamStack(Stack):
             "RawCrawler",
             name="clickstream-raw-crawler-cdk",
             role=glue_crawler_role.role_arn,
-            database_name="clickstream_raw",
+            database_name=raw_db_name,
             targets=glue.CfnCrawler.TargetsProperty(
                 s3_targets=[glue.CfnCrawler.S3TargetProperty(path=f"s3://{self.bucket.bucket_name}/raw/")]
             ),
@@ -189,7 +200,7 @@ class ClickstreamStack(Stack):
             "CuratedCrawler",
             name="clickstream-curated-crawler-cdk",
             role=glue_crawler_role.role_arn,
-            database_name="clickstream_curated",
+            database_name=curated_db_name,
             targets=glue.CfnCrawler.TargetsProperty(
                 s3_targets=[glue.CfnCrawler.S3TargetProperty(path=f"s3://{self.bucket.bucket_name}/curated/")]
             ),
@@ -219,7 +230,7 @@ class ClickstreamStack(Stack):
                 python_version="3",
             ),
             default_arguments={
-                "--raw_database": "clickstream_raw",
+                "--raw_database": raw_db_name,
                 "--raw_table": "raw",
                 "--curated_s3_path": f"s3://{self.bucket.bucket_name}/curated/",
                 "--enable-metrics": "true",
@@ -234,42 +245,54 @@ class ClickstreamStack(Stack):
 
         # ------------------------------------------------------------------
         # Kinesis + Firehose — Path B streaming ingestion (Phase 3 choice)
+        #
+        # enable_streaming defaults to True (the intended, documented
+        # architecture), but is switchable per-deploy because this AWS
+        # account has been observed to reject Kinesis stream creation
+        # outright with "The AWS Access Key Id needs a subscription for
+        # the service" — an account-level restriction, not an IAM gap
+        # (confirmed via both a plain read-only `kinesis:ListStreams` call
+        # and a real `cdk deploy` attempt, both under different
+        # credentials). See infra-cdk/cdk-setup-notes.md. Until that's
+        # resolved (AWS Support / account settings), deploy with
+        # `-c enable_streaming=false` to stand up everything else.
         # ------------------------------------------------------------------
-        stream = kinesis.CfnStream(
-            self,
-            "ClickstreamEventsStream",
-            name="clickstream-events-stream-cdk",
-            stream_mode_details=kinesis.CfnStream.StreamModeDetailsProperty(stream_mode="ON_DEMAND"),
-        )
-
-        stream_arn = f"arn:aws:kinesis:{self.region}:{self.account}:stream/{stream.name}"
-        firehose_role.add_to_policy(
-            iam.PolicyStatement(
-                actions=["kinesis:DescribeStream", "kinesis:GetShardIterator", "kinesis:GetRecords", "kinesis:ListShards"],
-                resources=[stream_arn],
+        if enable_streaming:
+            stream = kinesis.CfnStream(
+                self,
+                "ClickstreamEventsStream",
+                name="clickstream-events-stream-cdk",
+                stream_mode_details=kinesis.CfnStream.StreamModeDetailsProperty(stream_mode="ON_DEMAND"),
             )
-        )
 
-        firehose.CfnDeliveryStream(
-            self,
-            "ClickstreamFirehose",
-            delivery_stream_name="clickstream-firehose-cdk",
-            delivery_stream_type="KinesisStreamAsSource",
-            kinesis_stream_source_configuration=firehose.CfnDeliveryStream.KinesisStreamSourceConfigurationProperty(
-                kinesis_stream_arn=stream_arn,
-                role_arn=firehose_role.role_arn,
-            ),
-            extended_s3_destination_configuration=firehose.CfnDeliveryStream.ExtendedS3DestinationConfigurationProperty(
-                bucket_arn=self.bucket.bucket_arn,
-                role_arn=firehose_role.role_arn,
-                prefix="raw/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/",
-                error_output_prefix="firehose-errors/!{firehose:error-output-type}/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/",
-                buffering_hints=firehose.CfnDeliveryStream.BufferingHintsProperty(
-                    interval_in_seconds=60, size_in_m_bs=5
+            stream_arn = f"arn:aws:kinesis:{self.region}:{self.account}:stream/{stream.name}"
+            firehose_role.add_to_policy(
+                iam.PolicyStatement(
+                    actions=["kinesis:DescribeStream", "kinesis:GetShardIterator", "kinesis:GetRecords", "kinesis:ListShards"],
+                    resources=[stream_arn],
+                )
+            )
+
+            firehose.CfnDeliveryStream(
+                self,
+                "ClickstreamFirehose",
+                delivery_stream_name="clickstream-firehose-cdk",
+                delivery_stream_type="KinesisStreamAsSource",
+                kinesis_stream_source_configuration=firehose.CfnDeliveryStream.KinesisStreamSourceConfigurationProperty(
+                    kinesis_stream_arn=stream_arn,
+                    role_arn=firehose_role.role_arn,
                 ),
-                compression_format="GZIP",
-            ),
-        )
+                extended_s3_destination_configuration=firehose.CfnDeliveryStream.ExtendedS3DestinationConfigurationProperty(
+                    bucket_arn=self.bucket.bucket_arn,
+                    role_arn=firehose_role.role_arn,
+                    prefix="raw/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/",
+                    error_output_prefix="firehose-errors/!{firehose:error-output-type}/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/",
+                    buffering_hints=firehose.CfnDeliveryStream.BufferingHintsProperty(
+                        interval_in_seconds=60, size_in_m_bs=5
+                    ),
+                    compression_format="GZIP",
+                ),
+            )
 
         # ------------------------------------------------------------------
         # Budgets — the two guardrails from Phase 0, now provisioned as code
