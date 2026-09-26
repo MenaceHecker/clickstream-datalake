@@ -59,6 +59,8 @@ each for phase-specific setup steps and decisions:
 - `infra-cdk/` — Phase 9: the whole pipeline as CDK
 - `iam/` — least-privilege policies for every service role used above
 - `docs/` — dashboard screenshots, final cost report
+- `tests/` — pytest suite for the generator and S3 upload logic
+- `.github/workflows/` — CI: lint, generator smoke test, pytest, `cdk synth`
 
 ## Key decisions & trade-offs
 
@@ -152,13 +154,18 @@ running commands against a live AWS account during Phase 10 validation.
 correctness-focused subset — `E`/`F`, with line-length rules deliberately
 left off since several `argparse --help` strings are long on purpose, not
 sloppy), a real smoke test of the event generator (runs it, then validates
-the output JSONL against the schema), and `cdk synth --strict` in both
-`enable_streaming` states. Worth being precise about what this actually buys: it wouldn't have caught
-either bug — the Glue database collision and the missing IAM action both
-only surface against real AWS state, which `cdk synth` deliberately never
-touches. What it does catch is the cheaper, more common failure: a typo
-that breaks the template outright, or a Python import error, before either
-reaches a real `cdk deploy` and burns a deploy cycle finding out.
+the output JSONL against the schema), a `pytest` suite (`tests/` —
+funnel-shape and schema-evolution regression tests for the generator, plus
+`moto`-mocked S3 tests for the Hive-style partitioning logic in
+`upload_to_s3.py`), and `cdk synth --strict` in both `enable_streaming`
+states. Worth being precise about what this actually buys: none of it
+would have caught either real bug from Phase 10 validation — the Glue
+database collision and the missing IAM action both only surface against
+real AWS state, which none of these checks touch. What it does catch is
+the cheaper, more common failure: a broken funnel ratio, a partition-path
+regression, a typo that breaks the CDK template outright, or a Python
+import error — before any of them reach a real `cdk deploy` or a bad
+dashboard and burn a debugging cycle finding out.
 
 **Schema evolution handled by design, not by accident.** The event generator
 (Phase 1) deliberately introduces a `discount_code` field partway through
