@@ -62,6 +62,17 @@ jobs:
           print(f"OK: {count} schema-consistent events across {len(files)} file(s)")
           EOF
 
+  unit-tests:
+    name: Unit tests (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r tests/requirements.txt
+      - run: pytest tests/ -v
+
   cdk-synth:
     name: CDK synth (both streaming modes)
     runs-on: ubuntu-latest
