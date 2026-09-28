@@ -145,6 +145,18 @@ documented example, alongside the Phase 6 tag-condition issue below, that
 least-privilege IAM policies get refined by hitting real `AccessDenied`
 errors, not by getting every action right on the first pass.
 
+**The crawler failure led to monitoring, not just a fix.** Finding the
+`BatchGetPartition` gap above only happened because someone went looking —
+nothing in the account would have surfaced a silently-failing crawler
+otherwise. `stack.py` now defines an SNS topic plus two EventBridge rules
+(`Glue Crawler State Change` / `Glue Job State Change`, filtered to
+`Failed`/`FAILED`) so the next failure sends an email instead of waiting
+to be found. Deliberately account-wide rather than scoped to this stack's
+own `-cdk`-suffixed resources — filtering by name would mean the alerting
+only protects whichever pipeline happens to be CDK-provisioned at a given
+moment, not whichever one is actually processing real data, which for
+most of this project has been the manually-built one.
+
 **Added CI after finding real bugs by hand, not before.** This project
 initially had zero automation — every gap in it (the crawler's missing
 `glue:BatchGetPartition`, the CDK stack's hardcoded Glue database names
