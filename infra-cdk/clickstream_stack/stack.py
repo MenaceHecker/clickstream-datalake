@@ -29,6 +29,10 @@ from aws_cdk import (
     aws_kinesisfirehose as firehose,
     aws_budgets as budgets,
     aws_s3_assets as s3_assets,
+    aws_sns as sns,
+    aws_sns_subscriptions as sns_subscriptions,
+    aws_events as events,
+    aws_events_targets as events_targets,
 )
 from constructs import Construct
 
@@ -293,6 +297,56 @@ class ClickstreamStack(Stack):
                     compression_format="GZIP",
                 ),
             )
+
+        # ------------------------------------------------------------------
+        # Monitoring — alert on Glue crawler/job failures
+        #
+        # Added after the raw crawler was found silently failing on every
+        # run during Phase 10 validation (a missing glue:BatchGetPartition
+        # permission — see iam/glue-crawler-role-policy.json and this
+        # stack's GlueCrawlerRole above). Nothing surfaced that failure
+        # anywhere; it just sat there until someone happened to check.
+        #
+        # Deliberately NOT scoped to this stack's own -cdk-suffixed
+        # crawler/job names: Glue emits these state-change events for
+        # every crawler/job in the account, and filtering to specific
+        # resource names here would mean this alerting only protects
+        # whichever pipeline happens to be CDK-provisioned at the moment,
+        # not whichever one is actually running real data — which, for
+        # most of this project's life, was the manually-built one.
+        # ------------------------------------------------------------------
+        failure_topic = sns.Topic(
+            self,
+            "GlueFailureAlertsTopic",
+            topic_name="clickstream-glue-failure-alerts-cdk",
+            display_name="Clickstream Glue failure alerts",
+        )
+        if alert_email:
+            failure_topic.add_subscription(sns_subscriptions.EmailSubscription(alert_email))
+
+        events.Rule(
+            self,
+            "GlueCrawlerFailedRule",
+            rule_name="clickstream-glue-crawler-failed-cdk",
+            event_pattern=events.EventPattern(
+                source=["aws.glue"],
+                detail_type=["Glue Crawler State Change"],
+                detail={"state": ["Failed"]},
+            ),
+            targets=[events_targets.SnsTopic(failure_topic)],
+        )
+
+        events.Rule(
+            self,
+            "GlueJobFailedRule",
+            rule_name="clickstream-glue-job-failed-cdk",
+            event_pattern=events.EventPattern(
+                source=["aws.glue"],
+                detail_type=["Glue Job State Change"],
+                detail={"state": ["FAILED"]},
+            ),
+            targets=[events_targets.SnsTopic(failure_topic)],
+        )
 
         # ------------------------------------------------------------------
         # Budgets — the two guardrails from Phase 0, now provisioned as code
