@@ -58,7 +58,7 @@ each for phase-specific setup steps and decisions:
 - `quicksight/` — Phase 8: dashboard notebook (QuickSight fallback)
 - `infra-cdk/` — Phase 9: the whole pipeline as CDK
 - `iam/` — least-privilege policies for every service role used above
-- `docs/` — dashboard screenshots, final cost report
+- `docs/` — dashboard screenshots, final cost report, incident postmortem
 - `tests/` — pytest suite for the generator and S3 upload logic
 - `.github/workflows/` — CI: lint, generator smoke test, pytest, `cdk synth`
 
@@ -282,3 +282,13 @@ _(Screenshots from `quicksight/dashboard_notebook.py` output — see `docs/`)_
 
 See `docs/cost-report.md` for the final Cost Explorer breakdown against the
 $200 credit pool.
+
+## Incident postmortem
+
+This project had one real incident: the raw-zone Glue crawler silently
+failed on every run for at least 5 days due to a missing IAM permission,
+with no monitoring in place to surface it. See
+`docs/postmortem-glue-crawler-failure.md` for the full writeup — root
+cause, what the impact would have been if it had gone uncaught longer, and
+the monitoring it led to (see the "Verified live" entry in Key decisions
+above).
