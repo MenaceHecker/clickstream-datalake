@@ -157,6 +157,23 @@ only protects whichever pipeline happens to be CDK-provisioned at a given
 moment, not whichever one is actually processing real data, which for
 most of this project has been the manually-built one.
 
+**Verified live, not just deployed (2026-09-29).** Created the same SNS
+topic and EventBridge rules directly against the real account (not via a
+full `cdk deploy`, to avoid recreating a parallel pipeline just to test an
+alarm) and confirmed delivery with a direct `sns publish` — the email
+arrived. The EventBridge rule → SNS trigger itself can't be end-to-end
+tested with a synthetic event: `events:PutEvents` refuses any event whose
+`Source` starts with `aws.` (e.g. `aws.glue`) regardless of caller
+identity, including full admin — a hard, identity-independent guardrail
+against spoofing real AWS service events, not a permissions gap. So the
+rule's correctness rests on matching AWS's documented event schema exactly
+(`"state": "Failed"` for crawlers, `"state": "FAILED"` for jobs — note the
+casing difference, confirmed against both this stack's `EventPattern` and
+AWS's own event examples) rather than a live trigger test. A fully genuine
+test would mean deliberately breaking the crawler's IAM permissions again
+to force a real failure — not done here, since one real, accidental
+failure already proved the underlying mechanism this session.
+
 **Added CI after finding real bugs by hand, not before.** This project
 initially had zero automation — every gap in it (the crawler's missing
 `glue:BatchGetPartition`, the CDK stack's hardcoded Glue database names
