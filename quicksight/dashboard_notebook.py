@@ -8,8 +8,8 @@ README/portfolio.
 
 Chosen over QuickSight for this project specifically because QuickSight
 bills on a separate pricing/trial structure outside the $200 Free Tier
-credit pool this whole project is scoped against (see risk register) —
-this keeps the dashboard entirely within the same cost boundary as
+credit pool this whole project is scoped against (see risk register).
+This keeps the dashboard entirely within the same cost boundary as
 everything else.
 
 Structured with '# %%' cell markers so it opens as a notebook-like
@@ -83,7 +83,7 @@ def run_athena_query(query: str, database: str = ATHENA_DATABASE) -> pd.DataFram
     return pd.read_csv(io.BytesIO(obj["Body"].read()))
 
 
-# %% Query 1 — Funnel (view -> cart -> purchase)
+# %% Query 1: Funnel (view -> cart -> purchase)
 FUNNEL_QUERY = """
 SELECT
     COUNT(DISTINCT CASE WHEN event_type = 'product_view' THEN session_id END) AS viewed,
@@ -93,7 +93,7 @@ SELECT
 FROM clickstream_curated.curated
 """
 
-# %% Query 2 — Revenue trend over time (see athena/queries/revenue_trend.sql)
+# %% Query 2: Revenue trend over time (see athena/queries/revenue_trend.sql)
 REVENUE_TREND_QUERY = """
 SELECT year, month, day, ROUND(SUM(price), 2) AS daily_revenue
 FROM clickstream_curated.curated
@@ -102,7 +102,7 @@ GROUP BY year, month, day
 ORDER BY year, month, day
 """
 
-# %% Query 3 — Revenue by device/country (see athena/queries/revenue_by_country.sql)
+# %% Query 3: Revenue by device/country (see athena/queries/revenue_by_country.sql)
 DEVICE_COUNTRY_QUERY = """
 SELECT country, device_type, ROUND(SUM(price), 2) AS total_revenue
 FROM clickstream_curated.curated
@@ -112,7 +112,7 @@ ORDER BY total_revenue DESC
 """
 
 
-# %% Chart builders — pure functions of a DataFrame, so they're testable
+# %% Chart builders: pure functions of a DataFrame, so they're testable
 # without needing a live Athena connection (see the local test in this
 # module's accompanying test run, not shipped as part of this file).
 

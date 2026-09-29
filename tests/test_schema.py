@@ -8,7 +8,7 @@ from schema import (
 
 def test_device_type_weights_match_device_types():
     # random.choices(DEVICE_TYPES, weights=DEVICE_TYPE_WEIGHTS) raises
-    # ValueError at runtime if these two lists drift out of sync — this
+    # ValueError at runtime if these two lists drift out of sync. This
     # catches that at test time instead of mid-generation.
     assert len(DEVICE_TYPES) == len(DEVICE_TYPE_WEIGHTS)
 

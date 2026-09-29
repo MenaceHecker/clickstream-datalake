@@ -33,7 +33,7 @@ def test_upload_file_dry_run_never_touches_s3(tmp_path):
     filepath = tmp_path / "events_20260906_1430.jsonl"
     filepath.write_text('{"timestamp": "2026-09-06T14:30:00"}\n')
 
-    # Passing s3_client=None proves this path never calls it — a real S3
+    # Passing s3_client=None proves this path never calls it. A real S3
     # client would raise on any method call against None only if actually
     # invoked, so this fails loudly if dry_run ever stops short-circuiting.
     key = upload_file(None, "unused-bucket", str(filepath), "raw", dry_run=True)

@@ -1,17 +1,26 @@
-# Phase 3 (Path B) — Kinesis Data Stream + Firehose Setup
+# Phase 3 (Path B): Kinesis Data Stream + Firehose Setup
 
 Goal: replace manual/batch file uploads with a real streaming pipeline.
 `kinesis_producer.py` pushes records continuously; Firehose buffers and
-writes them to the S3 raw zone automatically so no Lambda in this path.
+writes them to the S3 raw zone automatically, so no Lambda in this path.
+
+**Note (2026-09-29): this path was never actually deployed.** The AWS
+account used for this project rejects every Kinesis and Firehose API
+call, including plain read-only `ListStreams`, with
+`SubscriptionRequiredException`, an account-level restriction unrelated
+to IAM. The setup steps below are correct and were `cdk synth`-verified
+as part of Phase 9, but the stream and delivery stream themselves were
+never actually creatable here. See the README's Key Decisions section
+and `infra-cdk/cdk-setup-notes.md` for the full account.
 
 ## 1. Create the Kinesis Data Stream
 
-Console: Kinesis → Data Streams → Create data stream
+Console: Kinesis, Data Streams, Create data stream
 
 | Setting | Value | Why |
 |---|---|---|
 | Stream name | `clickstream-events-stream` | |
-| Capacity mode | **On-demand** | Volume here is low and bursty (a producer script, not real traffic); on-demand avoids paying for provisioned shard-hours you don't need. Provisioned (1 shard) is the cheaper choice only if you know you'll run the producer for many hours straight — on-demand is the safer default for a portfolio project you'll start and stop. |
+| Capacity mode | **On-demand** | Volume here is low and bursty (a producer script, not real traffic); on-demand avoids paying for provisioned shard-hours you don't need. Provisioned (1 shard) is the cheaper choice only if you know you'll run the producer for many hours straight. On-demand is the safer default for a portfolio project you'll start and stop. |
 | Tag | `Project: clickstream-lake` | |
 
 CLI equivalent:
@@ -27,7 +36,7 @@ aws kinesis tag-resource \
 
 ## 2. Create the Firehose delivery stream
 
-Console: Kinesis → Data Firehose → Create delivery stream
+Console: Kinesis, Data Firehose, Create delivery stream
 
 | Setting | Value |
 |---|---|
@@ -42,17 +51,17 @@ Console: Kinesis → Data Firehose → Create delivery stream
 | Compression | GZIP |
 | Firehose IAM role | New service role (see `iam/firehose-service-role-policy.json`) |
 
-CLI is possible too but the console wizard auto-creates the IAM service
+CLI is possible too, but the console wizard auto-creates the IAM service
 role and trust policy correctly on the first try, which is fiddly to get
-right by hand — recommended to do this one step via console even though
+right by hand. Recommended to do this one step via console even though
 everything else in this project favors CLI/CDK.
 
 ### Important trade-off: delivery-time vs. event-time partitioning
 
 Phase 2's batch uploader (`upload_to_s3.py`) partitions by the **event's own
 timestamp**, read from inside each file. Firehose's `!{timestamp:...}`
-prefix expressions use **delivery time** — when Firehose flushes the
-buffer — not the event's original timestamp.
+prefix expressions use **delivery time**, when Firehose flushes the
+buffer, not the event's original timestamp.
 
 In practice these are seconds to low-minutes apart (that's what the 60s
 buffer means), so partitions still land in essentially the right hour.
@@ -61,7 +70,7 @@ letting it look like an oversight: **streamed data is partitioned by
 approximate ingest time; batch-uploaded data is partitioned by exact
 event time.** Both write into the same `raw/` zone with the same
 partition key names (`year=/month=/day=/hour=`), so Glue crawls them
-identically in Phase 5 — the distinction only matters if you're doing
+identically in Phase 5. The distinction only matters if you're doing
 time-sensitive analysis at minute-level granularity, which this project
 isn't.
 
@@ -69,10 +78,10 @@ An alternative that removes the discrepancy entirely is Firehose's
 **dynamic partitioning** feature, which can extract the real
 `timestamp` field from each JSON record via a JQ expression instead of
 using delivery time. It costs slightly more per GB processed and adds
-setup complexity (requires enabling record de-aggregation + a JQ
+setup complexity (requires enabling record de-aggregation plus a JQ
 expression per partition key). Documented here as the "more correct"
 option but not implemented, in the interest of not over-engineering a
-low-volume portfolio pipeline, this is itself a defensible cost/effort
+low-volume portfolio pipeline. This is itself a defensible cost/effort
 trade-off worth mentioning if asked.
 
 ## 3. Run the producer
@@ -83,7 +92,7 @@ cd ingestion
 python kinesis_producer.py --stream-name clickstream-events-stream --rate 5 --duration-seconds 300
 ```
 
-Let it run a few minutes, then check S3 — Firehose's 60-second buffer
+Let it run a few minutes, then check S3. Firehose's 60-second buffer
 means the first objects should appear shortly after the run starts.
 
 ```bash
@@ -92,20 +101,20 @@ aws s3 ls s3://clickstream-lake-mtusharaug/raw/ --recursive | tail -20
 
 ## Definition of done
 
-- [ ] Kinesis Data Stream `clickstream-events-stream` created, tagged
+- [ ] Kinesis Data Stream `clickstream-events-stream` created, tagged. Blocked: see the account-restriction note at the top of this file
 - [ ] Firehose delivery stream created, pointed at the stream and the
-      correct S3 prefix
+      correct S3 prefix. Blocked, same reason
 - [ ] Producer run for at least a few minutes without errors
 - [ ] New partitions visible in S3 under `raw/`, populated automatically
       with no manual upload step
-- [ ] Delivery-time-vs-event-time trade-off documented (this file)
+- [x] Delivery-time-vs-event-time trade-off documented (this file)
 
 ## Cost checkpoint
 
-On-demand Kinesis: charged per shard-hour equivalent + per-GB data
+On-demand Kinesis: charged per shard-hour equivalent plus per-GB data
 ingested, both negligible at this volume. Firehose: charged per GB
 ingested, also negligible for a short producer run. Nothing here should
-move the needle against the $200 pool but per the risk register, don't
+move the needle against the $200 pool, but per the risk register, don't
 forget to `aws kinesis delete-stream` and delete the Firehose delivery
 stream when you're done experimenting, since Kinesis (unlike Lambda) has
 an always-on cost component even when idle in provisioned mode. On-demand

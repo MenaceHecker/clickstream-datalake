@@ -8,7 +8,7 @@ portable across accounts/regions per the Phase 9 goal.
 
 If not provided, bucket_suffix falls back to the CDK-resolved account ID
 (still globally unique, just less readable), and alert_email must be
-provided explicitly — CDK will raise a clear error rather than silently
+provided explicitly: CDK will raise a clear error rather than silently
 skipping budget notifications if it's missing.
 """
 

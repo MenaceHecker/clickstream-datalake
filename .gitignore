@@ -8,7 +8,7 @@ env/
 .Python
 *.log
 
-# AWS / credentials — never commit these
+# AWS / credentials: never commit these
 .aws/
 *.pem
 *.env

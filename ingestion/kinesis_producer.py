@@ -4,12 +4,12 @@ kinesis_producer.py
 Streams simulated clickstream events into a Kinesis Data Stream in
 real time, reusing the funnel-simulation logic from generator/. This
 replaces the "run the generator, then upload a file" batch pattern from
-Phase 2 with a continuous producer — the streaming half of the Phase 3
+Phase 2 with a continuous producer, the streaming half of the Phase 3
 ingestion story.
 
 Kinesis Firehose (configured separately, see firehose-setup-notes.md)
 subscribes to the stream, buffers records, and writes them to the S3 raw
-zone automatically — no Lambda needed on this path.
+zone automatically. No Lambda is needed on this path.
 
 Usage:
     # Run for 10 minutes, ~5 events/sec

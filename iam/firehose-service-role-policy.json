@@ -1,5 +1,5 @@
 {
-  "_comment": "This is NOT attached to clickstream-dev. This is a separate service role that Firehose itself assumes to write into S3 on your behalf. The console's 'Create delivery stream' wizard creates this automatically if you let it — this file documents what it creates, for reference and for the Phase 9 CDK rebuild.",
+  "_comment": "This is NOT attached to clickstream-dev. This is a separate service role that Firehose itself assumes to write into S3 on your behalf. The console's 'Create delivery stream' wizard creates this automatically if you let it. This file documents what it creates, for reference and for the Phase 9 CDK rebuild.",
 
   "role_name": "clickstream-firehose-delivery-role",
 

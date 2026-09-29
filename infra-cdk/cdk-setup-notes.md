@@ -1,4 +1,4 @@
-# Phase 9 — CDK Rebuild: Setup, Deploy, and Teardown Notes
+# Phase 9: CDK Rebuild, Setup, Deploy, and Teardown Notes
 
 ## What was validated before this was handed over
 
@@ -17,8 +17,8 @@ written and hoped for) before being finalized:
   loudly with a clear message rather than silently deploying budgets
   with no subscriber
 
-This doesn't guarantee a clean `cdk deploy` against a real account (no
-substitute for actually running it), but it means the CloudFormation
+This doesn't guarantee a clean `cdk deploy` against a real account (there's
+no substitute for actually running it), but it means the CloudFormation
 this stack generates is structurally sound before you spend real deploy
 time on it.
 
@@ -27,7 +27,7 @@ time on it.
 Everything (S3, Glue, Kinesis, Firehose, IAM, Budgets) lives in one
 `ClickstreamStack` rather than being split into nested stacks per
 service. At this project's resource count, splitting stacks would add
-cross-stack reference complexity for no real benefit — and it keeps
+cross-stack reference complexity for no real benefit, and it keeps
 `cdk deploy` / `cdk destroy` genuinely one-command, which is the actual
 Phase 9 goal. Noted in the stack's own docstring as a scaling trade-off:
 a production version of this pipeline would likely split storage,
@@ -37,32 +37,32 @@ compute, and ingestion into independently-deployable stacks.
 
 `clickstream-lake-mtusharaug` was created by hand back in Phase 2.
 CloudFormation cannot "adopt" an existing bucket into a new stack by
-just reusing its name — if you deploy this CDK stack with
+just reusing its name. If you deploy this CDK stack with
 `bucket_suffix=mtusharaug`, it will try to create a bucket with that
 exact name and fail, because it already exists (owned by you, but not
 by this CloudFormation stack).
 
 This is exactly the tension Phase 9's own goal creates: *"Tear down the
 manually-created resources from earlier phases and redeploy entirely
-via cdk deploy — this proves the IaC actually works end-to-end."*
+via cdk deploy, this proves the IaC actually works end-to-end."*
 Two honest options:
 
-**Option A — full teardown and rebuild (matches the plan's intent)**:
-Delete the manually-created resources first (S3 objects + bucket, Glue
+**Option A, full teardown and rebuild (matches the plan's intent):**
+Delete the manually-created resources first (S3 objects and bucket, Glue
 databases/crawlers/job, Kinesis stream, Firehose delivery stream, the
 manually-created IAM roles), then `cdk deploy` fresh with the same
 `bucket_suffix=mtusharaug`. This is the version that actually
 demonstrates "torn down and redeployed via IaC," which is what the
 resume bullet claims.
 
-**Option B — deploy alongside, different suffix**: Use a different
+**Option B, deploy alongside, different suffix:** Use a different
 `bucket_suffix` (e.g. `mtusharaug-cdk`) so CDK creates a parallel set of
 resources without touching what you already built by hand. Lower risk,
-but doesn't actually prove the teardown/rebuild story — you'd have two
+but doesn't actually prove the teardown/rebuild story. You'd have two
 parallel pipelines, not one rebuilt one.
 
-**Recommendation**: since this is a portfolio project and the data
-itself has no real value to preserve, Option A is worth doing — it's
+**Recommendation:** since this is a portfolio project and the data
+itself has no real value to preserve, Option A is worth doing. It's
 the version of this phase that's actually worth putting on a resume.
 Back up nothing you need, then tear down for real.
 
@@ -100,7 +100,7 @@ aws s3 ls | grep clickstream
 
 ### 1. One-time: bootstrap the CDK environment
 
-See the caveat in `iam/iam-notes.md` — this needs broader-than-usual
+See the caveat in `iam/iam-notes.md`. This needs broader-than-usual
 permissions once. Either run as an admin identity, or temporarily
 attach `AdministratorAccess` to `clickstream-dev` for this single
 command:
@@ -125,15 +125,15 @@ Two separate reasons bootstrap specifically needs an admin identity, not
 just a policy tweak:
 1. `clickstream-dev`'s policy was missing `cloudformation:CreateChangeSet`
    (modern CDK CLI deploys via change sets, not direct `CreateStack`/
-   `UpdateStack` calls) — **fixed** in `iam/clickstream-dev-policy.json`,
+   `UpdateStack` calls). **Fixed** in `iam/clickstream-dev-policy.json`,
    which now also covers ongoing `cdk deploy` calls against the
    `clickstream-*` stack post-bootstrap.
 2. Even with that fixed, bootstrap itself creates resources that fall
-   outside every ARN this policy scopes to by design — the
-   `cdk-hnb659fds-*` IAM roles, a staging S3 bucket, an SSM parameter —
+   outside every ARN this policy scopes to by design: the
+   `cdk-hnb659fds-*` IAM roles, a staging S3 bucket, an SSM parameter,
    none of which match the `clickstream-*`/`stack/CDKToolkit/*` prefixes
    `clickstream-dev` is deliberately restricted to. This part genuinely
-   requires broader-than-`clickstream-dev` credentials; there's no policy
+   requires broader-than-`clickstream-dev` credentials. There's no policy
    fix that keeps it scoped, because bootstrap is an account-level,
    one-time setup operation by nature. Standard practice, not a workaround:
    an admin bootstraps the environment once, then scoped roles like
@@ -152,7 +152,7 @@ pip install -r requirements.txt
 ### 3. Update the `clickstream-dev` IAM policy
 
 Apply the updated `iam/clickstream-dev-policy.json` (adds CDK bootstrap
-role assumption + Budgets write access — see `iam-notes.md` for why).
+role assumption and Budgets write access; see `iam-notes.md` for why).
 
 ### 4. Synthesize first (no AWS calls, just generates the template)
 
@@ -191,7 +191,7 @@ cdk destroy -c bucket_suffix=mtusharaug -c alert_email=<your-real-email>
 ```
 
 Note: the S3 bucket has `RemovalPolicy.RETAIN` set deliberately (see
-`stack.py`) — `cdk destroy` will NOT delete the bucket or its contents,
+`stack.py`). `cdk destroy` will NOT delete the bucket or its contents,
 even though it deletes everything else. This is intentional: losing the
 Glue catalog or Kinesis stream costs nothing to recreate, but silently
 losing S3 data on every `cdk destroy` would be a bad default for a
@@ -203,7 +203,7 @@ actually delete the bucket too, empty it manually first
 ## Verified live (2026-09-25): `cdk deploy` actually completed
 
 Ran for real with a temporary admin identity (`clickstream-dev` alone can't
-bootstrap or do the initial deploy — see the verified caveats above), using
+bootstrap or do the initial deploy; see the verified caveats above), using
 Option B (deploy alongside, `bucket_suffix=mtusharaug-cdk`):
 
 ```bash
@@ -213,42 +213,46 @@ cdk deploy --profile admin -c bucket_suffix=mtusharaug-cdk -c alert_email=<email
 
 `enable_streaming=false` was needed because this AWS account rejects Kinesis
 stream creation outright (`"The AWS Access Key Id needs a subscription for
-the service"` — an account-level restriction, not IAM; confirmed via both a
+the service"`, an account-level restriction, not IAM; confirmed via both a
 plain `kinesis:ListStreams` call and a real `CREATE_FAILED` during this
 deploy). See the `enable_streaming` flag added to `stack.py`/`app.py`
 specifically to work around this and prove out the rest of the stack.
 
 Also found and fixed along the way: the Glue database names
 (`clickstream_raw`/`clickstream_curated`) were hardcoded rather than
-parametrized by `bucket_suffix` like the S3 bucket is — a real
+parametrized by `bucket_suffix` like the S3 bucket is, a real
 `AlreadyExists` failure on first attempt, since Glue database names are
 account+region global and collided with the manually-created Phase 5/6
 databases. Now suffixed (`clickstream_raw_<bucket_suffix>`) so Option B
 actually works.
 
 Result: `clickstream-lake-mtusharaug-cdk` bucket, two new Glue databases,
-two crawlers (`READY`), the ETL job, and — notably — the CDK stack's own
+two crawlers (`READY`), the ETL job, and, notably, the CDK stack's own
 `_add_budget` calls created two working budgets, proving Phase 9's IaC
 claim end-to-end, not just for storage/compute but for cost governance too.
 
 Torn down the same day with `cdk destroy --profile admin` once the proof
 was captured (Option B was always meant as a side-by-side demonstration,
 not a permanent second pipeline). `RemovalPolicy.RETAIN` meant the bucket
-survived the destroy as designed; emptied and deleted manually right after.
-Confirmed clean afterward: no `-cdk` bucket, databases, crawlers, job, or
-budgets remain — only the original manually-built pipeline and the
-`cdk-hnb659fds-assets-*` bootstrap staging bucket (expected to persist).
+survived the destroy as designed; it was emptied and deleted manually right
+after. Confirmed clean afterward: no `-cdk` bucket, databases, crawlers,
+job, or budgets remain. Only the original manually-built pipeline and the
+`cdk-hnb659fds-assets-*` bootstrap staging bucket (expected to persist)
+are left.
 
 ## Definition of done
 
 - [x] `cdk synth` runs clean (already verified locally, see top of this file)
 - [x] Manual resources torn down (Option A) or deployed alongside
-      (Option B) — **Option B**: deployed alongside as a parallel pipeline
-      under `bucket_suffix=mtusharaug-cdk`, manual resources untouched
-- [x] `cdk deploy` completes successfully (with `enable_streaming=false`
-      — see caveat above; Kinesis/Firehose still blocked at account level)
+      (Option B): **Option B** was used, deployed alongside as a parallel
+      pipeline under `bucket_suffix=mtusharaug-cdk`, manual resources
+      untouched
+- [x] `cdk deploy` completes successfully (with `enable_streaming=false`;
+      see caveat above, Kinesis/Firehose are still blocked at account level)
 - [ ] Data pipeline re-verified working against CDK-provisioned resources
       (upload data, run crawlers/ETL job, query Athena against the `-cdk`
-      resources specifically — not yet done, the original manually-built
-      pipeline already proved this end-to-end)
-- [ ] `cdk destroy` documented and tested at least once
+      resources specifically). Not done: the original manually-built
+      pipeline already proved this end-to-end, and the `-cdk` resources
+      were torn down after proving the deploy itself worked.
+- [x] `cdk destroy` documented and tested at least once (2026-09-25, see
+      above)

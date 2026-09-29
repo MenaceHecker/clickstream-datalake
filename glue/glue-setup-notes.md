@@ -1,4 +1,4 @@
-# Phase 5 — Glue Crawler & Data Catalog Setup
+# Phase 5: Glue Crawler & Data Catalog Setup
 
 Goal: make the raw JSON queryable without manually defining a schema.
 
@@ -8,7 +8,7 @@ See `iam/glue-crawler-role-policy.json` for the trust policy and
 permissions. Either create it by hand from that file, or let the Glue
 console's "Create crawler" wizard offer to create one for you (it'll
 attach the AWS-managed `AWSGlueServiceRole` policy plus an S3 read
-statement it generates from the path you give it — functionally similar
+statement it generates from the path you give it, functionally similar
 to the scoped version documented here, just less tightly scoped to this
 one bucket/prefix).
 
@@ -19,7 +19,7 @@ aws iam create-role \
 ```
 
 (The JSON file bundles the trust policy and permissions policy together
-for readability — when actually creating the role via CLI, pull out the
+for readability. When actually creating the role via CLI, pull out the
 `trust_policy` object for `--assume-role-policy-document` and the
 `permissions_policy` object for a separate `put-role-policy` call. The
 console wizard doesn't have this problem since it handles both in one
@@ -43,7 +43,7 @@ Check status:
 aws glue get-crawler --name clickstream-raw-crawler --query 'Crawler.State'
 ```
 
-Crawlers run asynchronously — this typically takes 1-3 minutes for a
+Crawlers run asynchronously. This typically takes 1-3 minutes for a
 dataset this size. Poll until `State` returns to `READY`.
 
 ## 4. Verify the catalog table
@@ -62,7 +62,7 @@ Check that:
 ## Handling the schema-evolution case
 
 The generator (Phase 1) deliberately introduces `discount_code` partway
-through data generation — earlier events don't have the key at all,
+through data generation: earlier events don't have the key at all,
 later ones do. This is exactly the kind of real-world schema drift a
 crawler has to handle.
 
@@ -80,7 +80,7 @@ aws glue get-table --database-name clickstream_raw --name raw \
   --query 'Table.StorageDescriptor.Columns[].Name'
 ```
 `discount_code` should appear as a nullable column across the whole
-table, not cause two different tables to exist.
+table, rather than causing two different tables to exist.
 
 ## 5. Smoke-test with Athena (before Phase 6/7 exist)
 
@@ -99,26 +99,26 @@ the catalog is correctly wired up to the underlying data.
 
 Note: Athena needs a query-result location configured
 (`s3://clickstream-lake-mtusharaug/athena-results/`) before it will run
-anything — set this once in the Athena console under Workgroup settings
+anything. Set this once in the Athena console under Workgroup settings
 if you haven't already.
 
 ## Definition of done
 
-- [ ] Glue database `clickstream_raw` exists
-- [ ] Crawler created and run successfully (`State: READY`, no errors)
-- [ ] Catalog table shows correct columns and partition keys
-- [ ] `discount_code` schema-evolution case confirmed handled as one
+- [x] Glue database `clickstream_raw` exists
+- [x] Crawler created and run successfully (`State: READY`, no errors), re-verified 2026-09-24 after fixing a missing `glue:BatchGetPartition` permission (see `docs/postmortem-glue-crawler-failure.md`)
+- [x] Catalog table shows correct columns and partition keys
+- [x] `discount_code` schema-evolution case confirmed handled as one
       table, not split
-- [ ] Test query in Athena returns real data matching expected funnel
-      shape
+- [x] Test query in Athena returns real data matching expected funnel
+      shape (verified via `athena/queries/funnel_conversion.sql` and the
+      Phase 8 dashboard)
 
 ## Cost checkpoint
 
 Glue crawlers are billed per DPU-hour with a 10-minute minimum per run.
 At this data volume (a few hundred small JSON files), a single crawl run
-should complete in 1-3 minutes but still bills the 10-minute minimum —
-this is a fixed cost per crawl regardless of data size, worth remembering
-before recrawling repeatedly out of habit while testing. Note the actual
-duration and DPU count used here for the Phase 10 cost report; this is a
-useful "small negligible cost, but understand why it has a floor"
-data point.
+completes in 1-3 minutes but still bills the 10-minute minimum. This is
+a fixed cost per crawl regardless of data size, worth remembering before
+recrawling repeatedly out of habit while testing. See `docs/cost-report.md`
+for the actual duration and DPU count used here, a useful "small
+negligible cost, but understand why it has a floor" data point.

@@ -36,7 +36,7 @@ def test_funnel_is_lossy_in_the_documented_order():
     for stage in stages:
         assert counts.get(stage, 0) > 0, f"expected at least one {stage} event"
 
-    # Each stage must be strictly smaller than the one before it — that's
+    # Each stage must be strictly smaller than the one before it. That's
     # the "funnel" shape, independent of the exact conversion percentages.
     for earlier, later in zip(stages, stages[1:]):
         assert counts[earlier] > counts[later], (
@@ -53,7 +53,7 @@ def test_funnel_is_lossy_in_the_documented_order():
 def test_schema_evolution_introduces_discount_code_partway_through():
     """discount_code should be entirely absent from early events (not just
     null) and present as a key (possibly null) once generation has passed
-    the halfway point — this is what gives Phase 6's Glue ETL job a real
+    the halfway point. This is what gives Phase 6's Glue ETL job a real
     schema-evolution case to handle."""
     ts = datetime.now(timezone.utc)
 

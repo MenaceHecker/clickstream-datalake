@@ -3,7 +3,7 @@ event_generator.py
 
 Generates realistic, funnel-shaped e-commerce clickstream data and writes
 it locally as newline-delimited JSON (JSONL), batched into files that
-simulate fixed time windows (default: 5 minutes each). No AWS calls here —
+simulate fixed time windows (default: 5 minutes each). No AWS calls here;
 this phase proves the data is believable before anything touches S3.
 
 Usage:
@@ -17,7 +17,7 @@ believable story:
     100       -> ~40          -> ~15          -> ~10             -> ~7
 
 Roughly halfway through a run, events start including a `discount_code`
-field that didn't exist in earlier events. This is intentional — it gives
+field that didn't exist in earlier events. This is intentional: it gives
 the Phase 6 Glue ETL job a real schema-evolution case to handle instead of
 a hypothetical one.
 """

@@ -7,12 +7,12 @@ Firehose (the Path B streaming ingestion chosen back in Phase 3), IAM
 roles for each service, and AWS Budgets.
 
 This is a deliberate one-stack design rather than splitting into nested
-stacks per service — at this project's scale, one stack keeps
+stacks per service. At this project's scale, one stack keeps
 `cdk deploy` / `cdk destroy` as true one-command operations (the Phase 9
 goal), and the resource count here doesn't approach CloudFormation's
 per-stack limits. A production version of this pipeline serving real
 traffic would likely split storage, compute, and ingestion into separate
-stacks for independent deploy cadences — noted here as the scaling path
+stacks for independent deploy cadences, noted here as the scaling path
 not taken, deliberately, for a portfolio project of this size.
 """
 
@@ -56,13 +56,13 @@ class ClickstreamStack(Stack):
         # parametrized by bucket_suffix. That broke a real "Option B:
         # deploy alongside" attempt (see cdk-setup-notes.md) with
         # AlreadyExists errors, since Glue database names are account+region
-        # global — a parallel deploy under a different bucket_suffix still
+        # global, so a parallel deploy under a different bucket_suffix still
         # collided with the manually-created databases from Phase 5/6.
         raw_db_name = f"clickstream_raw_{bucket_suffix}" if bucket_suffix else "clickstream_raw"
         curated_db_name = f"clickstream_curated_{bucket_suffix}" if bucket_suffix else "clickstream_curated"
 
         # ------------------------------------------------------------------
-        # S3 — the data lake bucket, with Phase 4's lifecycle rules built in
+        # S3: the data lake bucket, with Phase 4's lifecycle rules built in
         # ------------------------------------------------------------------
         self.bucket = s3.Bucket(
             self,
@@ -99,14 +99,14 @@ class ClickstreamStack(Stack):
                     enabled=True,
                     abort_incomplete_multipart_upload_after=Duration.days(7),
                 ),
-                # Note: curated/ intentionally has NO lifecycle rule — see
+                # Note: curated/ intentionally has NO lifecycle rule. See
                 # lifecycle/lifecycle-notes.md for the documented rationale
                 # (actively queried, stays on Standard).
             ],
         )
 
         # ------------------------------------------------------------------
-        # IAM — one role per service, matching iam/*-role-policy.json docs
+        # IAM: one role per service, matching iam/*-role-policy.json docs
         # ------------------------------------------------------------------
         glue_crawler_role = iam.Role(
             self,
@@ -166,7 +166,7 @@ class ClickstreamStack(Stack):
         self.bucket.grant_read(firehose_role)
 
         # ------------------------------------------------------------------
-        # Glue — databases, crawlers, ETL job
+        # Glue: databases, crawlers, ETL job
         # ------------------------------------------------------------------
         raw_database = glue.CfnDatabase(
             self,
@@ -248,13 +248,13 @@ class ClickstreamStack(Stack):
         )
 
         # ------------------------------------------------------------------
-        # Kinesis + Firehose — Path B streaming ingestion (Phase 3 choice)
+        # Kinesis + Firehose: Path B streaming ingestion (Phase 3 choice)
         #
         # enable_streaming defaults to True (the intended, documented
         # architecture), but is switchable per-deploy because this AWS
         # account has been observed to reject Kinesis stream creation
         # outright with "The AWS Access Key Id needs a subscription for
-        # the service" — an account-level restriction, not an IAM gap
+        # the service," an account-level restriction, not an IAM gap
         # (confirmed via both a plain read-only `kinesis:ListStreams` call
         # and a real `cdk deploy` attempt, both under different
         # credentials). See infra-cdk/cdk-setup-notes.md. Until that's
@@ -299,11 +299,11 @@ class ClickstreamStack(Stack):
             )
 
         # ------------------------------------------------------------------
-        # Monitoring — alert on Glue crawler/job failures
+        # Monitoring: alert on Glue crawler/job failures
         #
         # Added after the raw crawler was found silently failing on every
         # run during Phase 10 validation (a missing glue:BatchGetPartition
-        # permission — see iam/glue-crawler-role-policy.json and this
+        # permission, see iam/glue-crawler-role-policy.json and this
         # stack's GlueCrawlerRole above). Nothing surfaced that failure
         # anywhere; it just sat there until someone happened to check.
         #
@@ -312,7 +312,7 @@ class ClickstreamStack(Stack):
         # every crawler/job in the account, and filtering to specific
         # resource names here would mean this alerting only protects
         # whichever pipeline happens to be CDK-provisioned at the moment,
-        # not whichever one is actually running real data — which, for
+        # not whichever one is actually running real data, which, for
         # most of this project's life, was the manually-built one.
         # ------------------------------------------------------------------
         failure_topic = sns.Topic(
@@ -349,7 +349,7 @@ class ClickstreamStack(Stack):
         )
 
         # ------------------------------------------------------------------
-        # Budgets — the two guardrails from Phase 0, now provisioned as code
+        # Budgets: the two guardrails from Phase 0, now provisioned as code
         # ------------------------------------------------------------------
         self._add_budget(
             construct_id="SoftLimitBudget",
