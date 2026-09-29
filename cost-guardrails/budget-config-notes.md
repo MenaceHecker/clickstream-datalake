@@ -36,16 +36,39 @@ design; see `iam/iam-notes.md` setup step 5). Confirmed via
 
 The CDK stack's own `_add_budget` calls also created a second, parallel
 pair (`clickstream-soft-limit-cdk`, `clickstream-hard-stop-cdk`) as part of
-proving Phase 9's IaC end-to-end — see `infra-cdk/cdk-setup-notes.md` for
-that deploy. Four budgets now exist in total; worth deciding whether to
-keep both pairs or tear down one set once you're done treating this as a
-side-by-side proof.
+proving Phase 9's IaC end-to-end — see `infra-cdk/cdk-setup-notes.md`. That
+parallel pipeline (and its budgets) was torn down the same day once the
+proof was captured; only the two budgets above remain.
 
 This closed the one real gap this project had: the least-privilege IAM
 design correctly denied `clickstream-dev` from creating budgets directly
 (confirmed live with a real `AccessDeniedException` before this was fixed),
 exactly as documented — it just needed the manual admin step actually
 carried out, which it now has been.
+
+## Two more real gotchas, found fixing a wrong subscriber email (2026-09-29)
+
+While setting up SNS-based failure alerting (see the README's "Verified
+live" entry), all three budget notification subscribers turned out to be
+subscribed to the wrong email — a mistake on the assistant's part, using
+an ambient default instead of this project's actual contact address. Two
+things surfaced while fixing it:
+
+1. **AWS Budgets deletes a notification entirely once its last subscriber
+   is removed.** Running `delete-subscriber` on the only subscriber for
+   each notification silently deleted all three notifications (not just
+   the subscriber) — `describe-notifications-for-budget` came back empty.
+   The fix isn't "update the subscriber," it's `create-notification` with
+   the subscriber included from the start, recreating the notification
+   object itself.
+2. **SNS email subscriptions require explicit confirmation before
+   delivery works**, but budget notification subscribers do not — a
+   budget alert would have gone to the wrong inbox immediately if a
+   threshold had ever actually been crossed, with no confirmation step to
+   catch the mistake first. The stale, unconfirmed SNS subscription to the
+   wrong address was left to expire on its own (3-day default) rather than
+   force-removed, since there's no clean API to cancel a pending
+   confirmation before that.
 
 ## Cost Explorer
 
